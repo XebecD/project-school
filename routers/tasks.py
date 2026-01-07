@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Body, HTTPException
-from models import Task,TaskUpdate
+from models import Task, TaskUpdate, UserTaskLink
 from utils.helpers import serialize
 from bson import ObjectId
 from typing import List
@@ -36,3 +36,23 @@ async def update_task_status(request: Request, task_id: str, update: TaskUpdate)
 
     updated = await db.tasks.find_one({"_id": ObjectId(task_id)})
     return serialize(updated)
+
+@router.post("/user-tasks", status_code=201)
+async def link_user_to_task(request: Request, payload: UserTaskLink = Body(...)):
+    db = request.app.state.db
+    
+    # 1. Validate that the taskId is a real MongoDB ObjectId
+    if not ObjectId.is_valid(payload.taskId):
+        raise HTTPException(status_code=400, detail="Invalid taskId format")
+    
+    # 2. Update the task in the database
+    # We set the 'assigned_to' field of the task to the provided userId
+    result = await db.tasks.update_one(
+        {"_id": ObjectId(payload.taskId)},
+        {"$set": {"assigned_to": payload.userId}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    return {"status": "success", "message": f"Task {payload.taskId} assigned to user {payload.userId}"}

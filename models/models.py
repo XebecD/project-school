@@ -47,3 +47,7 @@ class TaskUpdate(BaseModel):
     status: Optional[str] = None
     priority: Optional[str] = None
     assigned_to: Optional[str] = None
+
+class UserTaskLink(BaseModel):
+    userId: str
+    taskId: str #objectId
