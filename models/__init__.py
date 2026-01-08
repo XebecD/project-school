@@ -1,6 +1,7 @@
-from .models import Project, Task, Goal, Chat, TaskUpdate, UserTaskLink, ProjectWithTasks
+from .models import Project, Task, Goal, Chat, TaskUpdate, UserTaskLink, ProjectWithTasks, TaskInfo, ProjectWithRelevantTasks
 
 __all__ = [
     "Project", "Task",
-    "Goal", "Chat", "TaskUpdate", "UserTaskLink", "ProjectWithTasks"
+    "Goal", "Chat", "TaskUpdate", "UserTaskLink", "ProjectWithTasks",
+    "TaskInfo", "ProjectWithRelevantTasks"
 ]

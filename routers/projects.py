@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Body, HTTPException
-from models import Project, ProjectWithTasks, Task
-from utils.helpers import serialize
+from models import Project, ProjectWithTasks, Task, TaskInfo, ProjectWithRelevantTasks
+from utils.helpers import serialize, is_task_relevant_to_project
 from bson import ObjectId
 from typing import List
 
@@ -22,6 +22,66 @@ async def create_new_project(request: Request, project: Project = Body(...)):
 
     new_project = await db.projects.find_one({"_id": result.inserted_id})
     return serialize(new_project)
+
+
+@router.get("/with-relevant-tasks", response_model=List[ProjectWithRelevantTasks])
+async def get_projects_with_relevant_tasks(request: Request):
+    """
+    Get all projects with only LLM-filtered relevant tasks.
+    
+    Uses Google's Gemini LLM to determine task relevance based on project descriptions.
+    Implements in-memory caching to avoid redundant API calls.
+    
+    Returns:
+        List of projects with their relevant tasks (filtered by LLM)
+    """
+    db = request.app.state.db
+    
+    # Fetch all projects
+    projects_cursor = db.projects.find({})
+    projects = [serialize(doc) async for doc in projects_cursor]
+    
+    # Fetch all tasks
+    tasks_cursor = db.tasks.find({})
+    all_tasks = [serialize(doc) async for doc in tasks_cursor]
+    
+    # Process each project
+    result = []
+    for project in projects:
+        project_id = project["id"]
+        project_description = project.get("description", "")
+        
+        # Find tasks for this project
+        project_tasks = [task for task in all_tasks if task["project_id"] == project_id]
+        
+        # Filter tasks by relevance using LLM
+        relevant_tasks = []
+        for task in project_tasks:
+            task_id = task["id"]
+            task_title = task["title"]
+            
+            # Check relevance using LLM (with caching)
+            is_relevant = await is_task_relevant_to_project(
+                project_description=project_description,
+                task_title=task_title,
+                project_id=project_id,
+                task_id=task_id
+            )
+            
+            if is_relevant:
+                relevant_tasks.append(TaskInfo(
+                    taskId=task_id,
+                    taskName=task_title
+                ))
+        
+        # Add project with relevant tasks to result
+        result.append(ProjectWithRelevantTasks(
+            projectId=project_id,
+            tasks=relevant_tasks
+        ))
+    
+    print(f"📊 Returned {len(result)} projects with relevant tasks")
+    return result
 
 
 @router.get("/{project_id}", response_model=ProjectWithTasks)

@@ -51,3 +51,13 @@ class TaskUpdate(BaseModel):
 class UserTaskLink(BaseModel):
     userId: str
     taskId: str  # objectId
+
+class TaskInfo(BaseModel):
+    """Simplified task model for relevance filtering"""
+    taskId: str
+    taskName: str
+
+class ProjectWithRelevantTasks(BaseModel):
+    """Response model for projects with LLM-filtered relevant tasks"""
+    projectId: str
+    tasks: List[TaskInfo]
